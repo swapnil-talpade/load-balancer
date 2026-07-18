@@ -17,15 +17,44 @@ func main(){
 }
 
 func proxyHandler(w http.ResponseWriter, r *http.Request){
-	resp,err:=http.Get("http://localhost:9001"+r.RequestURI)
+	req,err:=http.NewRequest(r.Method, 
+		"http://localhost:9001"+r.URL.RequestURI(),
+		r.Body)
 
-	if err!=nil{
-		http.Error(w,err.Error(),http.StatusBadGateway)
+	if err != nil {
+		http.Error(w, err.Error(),http.StatusInternalServerError)
+		return
+	}
+
+	// forward request headers
+	for key,values:=range r.Header{
+		for _,value:=range values{
+			req.Header.Add(key,value)
+		}
+	}
+
+	// send requests to backend server
+	resp,err:=http.DefaultClient.Do(req)
+
+	if err != nil {
+		http.Error(w, err.Error(),http.StatusInternalServerError)
+		return
 	}
 
 	defer resp.Body.Close()
 
-	io.Copy(w,resp.Body)
+	// forward response headers
+	for key,values:=range resp.Header{
+		for _,value:=range values{
+			w.Header().Add(key,value)
+		}
+	}
+
+	// forward status code
+	w.WriteHeader(resp.StatusCode)
+
+	// forward response body
+	io.Copy(w, resp.Body)
 
 }
 
