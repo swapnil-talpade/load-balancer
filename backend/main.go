@@ -1,29 +1,23 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"io"
+	"log"
 	"net/http"
 )
 
 func main() {
-	http.HandleFunc("/", handler)
+	port := flag.String("port", "9001", "backend port")
+	flag.Parse()
 
-	fmt.Println("Backend running on port :9001")
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Response from backend %s\n", *port)
+	})
 
-	http.ListenAndServe(":9001", nil)
+	log.Printf("Backend running on :%s", *port)
 
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello World!\n")
-
-	body, _ := io.ReadAll(r.Body)
-
-	fmt.Fprintf(w, "Method: %s\n", r.Method)
-	fmt.Fprintf(w, "Path: %s\n", r.URL.Path)
-	fmt.Fprintf(w, "Query: %s\n", r.URL.RawQuery)
-	fmt.Fprintf(w, "Body: %s\n", string(body))
-	fmt.Fprintf(w, "User-Agent: %s\n", r.UserAgent())
-	fmt.Println(r.Header.Get("X-Forwarded-By"))
+	log.Fatal(
+		http.ListenAndServe(":"+*port, nil),
+	)
 }

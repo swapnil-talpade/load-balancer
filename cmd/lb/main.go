@@ -5,19 +5,37 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/swapnil-talpade/load-balancer/internal/backend"
+	"github.com/swapnil-talpade/load-balancer/internal/balancer"
 	"github.com/swapnil-talpade/load-balancer/internal/proxy"
 )
 
 func main() {
-	// the backend we want to forward requests to
-	backendURL, err := url.Parse("http://localhost:9001")
-	if err != nil {
-		log.Fatal(err)
+	backendURLs := []string{
+		"http://localhost:9001",
+		"http://localhost:9002",
 	}
 
-	// build the reverse proxy for that backend
-	reverseProxy := proxy.NewReverseProxy(backendURL)
+	var backends []*backend.Backend
 
-	log.Println("Starting server on :8080")
-	log.Fatal(http.ListenAndServe(":8080", reverseProxy))
+	for _, rawURLs := range backendURLs {
+		backendURL, err := url.Parse(rawURLs)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		reverseProxy := proxy.NewReverseProxy(backendURL)
+
+		backends = append(backends, &backend.Backend{
+			URL:   backendURL,
+			Proxy: reverseProxy,
+		})
+	}
+
+	loadBalancer := balancer.NewLoadBalancer(backends)
+
+	log.Println("Load Balancer listening on :8080")
+
+	log.Fatal(http.ListenAndServe(":8080", loadBalancer))
+
 }
